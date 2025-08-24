@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,27 +6,57 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Speech from "expo-speech";
-import { SettingsContext } from "../App";
+import { SettingsContext } from "../services/SettingsContext";
+import { getTTSLang } from "../i18n";
+import { fontSize, spacing } from "../theme/dimensions";
+
+const STORAGE_KEY = "@favoris";
 
 export default function FavorisScreen() {
-  const [favoris, setFavoris] = useState([
-    { id: "1", label: "J’ai faim", emoji: "🍽️" },
-    { id: "2", label: "Aide", emoji: "🆘" },
-  ]);
+  const insets = useSafeAreaInsets();
+  const [favoris, setFavoris] = useState([]);
   const [input, setInput] = useState("");
-  const { texteGrand, contraste, modeEnfant } = useContext(SettingsContext);
+  const { texteGrand, contraste, langue, modeEnfant } =
+    useContext(SettingsContext);
+
+  useEffect(() => {
+    (async () => {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) setFavoris(JSON.parse(stored));
+      else
+        setFavoris([
+          { id: "1", label: "J’ai faim", emoji: "🍽️" },
+          { id: "2", label: "Aide", emoji: "🆘" },
+        ]);
+    })();
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(favoris));
+  }, [favoris]);
 
   const speak = (text) => {
-    Speech.speak(text, { language: "fr-FR" });
+    Speech.speak(text, { language: getTTSLang(langue) });
   };
 
   const addFavori = () => {
-    if (!input.trim()) return;
+    const value = input.trim();
+    if (!value) return;
+    if (favoris.some((f) => f.label.toLowerCase() === value.toLowerCase())) {
+      Alert.alert("Déjà présent", "Ce favori existe déjà.");
+      return;
+    }
     setFavoris([
       ...favoris,
-      { id: Date.now().toString(), label: input.trim(), emoji: "⭐" },
+      { id: Date.now().toString(), label: value, emoji: "⭐" },
     ]);
     setInput("");
   };
@@ -35,8 +65,8 @@ export default function FavorisScreen() {
     setFavoris(favoris.filter((f) => f.id !== id));
   };
 
-  const labelSize = texteGrand ? 40 : 20;
-  const emojiSize = texteGrand ? 80 : 40;
+  const labelSize = texteGrand ? fontSize.xlarge : fontSize.medium;
+  const emojiSize = texteGrand ? fontSize.xlarge * 2 : fontSize.large;
 
   const containerStyle = [
     styles.container,
@@ -44,7 +74,7 @@ export default function FavorisScreen() {
   ];
   const titleStyle = [
     styles.title,
-    texteGrand && { fontSize: 36 },
+    { fontSize: texteGrand ? fontSize.xlarge : fontSize.large },
     contraste && { color: "#FFD600" },
   ];
   const rowStyle = [
@@ -84,7 +114,7 @@ export default function FavorisScreen() {
   const addBtnTextStyle = [styles.addBtnText, contraste && { color: "#000" }];
 
   return (
-    <View style={containerStyle}>
+    <SafeAreaView style={{ flex: 1, paddingTop: insets.top + 8 }}>
       <Text style={titleStyle}>Favoris</Text>
       <FlatList
         data={favoris}
@@ -108,33 +138,41 @@ export default function FavorisScreen() {
             )}
           </View>
         )}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={[
+          ...containerStyle,
+          { paddingBottom: insets.bottom + spacing.large },
+        ]}
+        ListFooterComponent={
+          !modeEnfant ? (
+            <View style={styles.addRow}>
+              <TextInput
+                style={inputStyle}
+                placeholder="Ajouter un favori..."
+                placeholderTextColor={contraste ? "#FFD600" : "#888"}
+                value={input}
+                onChangeText={setInput}
+              />
+              <TouchableOpacity style={addBtnStyle} onPress={addFavori}>
+                <Text style={addBtnTextStyle}>Ajouter</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
-      {!modeEnfant && (
-        <View style={styles.addRow}>
-          <TextInput
-            style={inputStyle}
-            placeholder="Ajouter un favori..."
-            placeholderTextColor={contraste ? "#FFD600" : "#888"}
-            value={input}
-            onChangeText={setInput}
-          />
-          <TouchableOpacity style={addBtnStyle} onPress={addFavori}>
-            <Text style={addBtnTextStyle}>Ajouter</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5faff", padding: 16 },
+  container: {
+    flexGrow: 1,
+    backgroundColor: "#f5faff",
+    padding: spacing.medium,
+  },
   title: {
-    fontSize: 24,
     fontWeight: "bold",
     color: "#1976d2",
-    marginBottom: 16,
+    marginBottom: spacing.medium,
     alignSelf: "center",
     fontFamily: "Roboto",
   },
@@ -143,15 +181,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 16,
-    marginVertical: 8,
-    padding: 16,
+    marginVertical: spacing.small,
+    padding: spacing.medium,
     elevation: 1,
   },
-  emojiBtn: { marginRight: 16 },
-  emoji: { fontSize: 40 },
+  emojiBtn: { marginRight: spacing.medium },
+  emoji: {},
   label: {
     flex: 1,
-    fontSize: 20,
     color: "#222",
     fontWeight: "bold",
     fontFamily: "Roboto",
@@ -159,27 +196,39 @@ const styles = StyleSheet.create({
   removeBtn: {
     backgroundColor: "#d32f2f",
     borderRadius: 10,
-    padding: 10,
-    marginLeft: 16,
+    padding: spacing.small,
+    marginLeft: spacing.small,
   },
-  removeBtnText: { color: "#fff", fontWeight: "bold", fontSize: 20 },
-  addRow: { flexDirection: "row", alignItems: "center", marginTop: 16 },
+  removeBtnText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: fontSize.large,
+  },
+  addRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing.medium,
+  },
   input: {
     flex: 1,
     backgroundColor: "#fff",
     borderRadius: 10,
-    padding: 12,
-    fontSize: 18,
-    marginRight: 10,
+    padding: spacing.small,
+    fontSize: fontSize.medium,
+    marginRight: spacing.small,
     borderWidth: 1,
     borderColor: "#1976d2",
     fontFamily: "Roboto",
   },
   addBtn: {
     backgroundColor: "#1976d2",
-    paddingVertical: 14,
-    paddingHorizontal: 22,
+    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.medium,
     borderRadius: 10,
   },
-  addBtnText: { color: "#fff", fontWeight: "bold", fontSize: 18 },
+  addBtnText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: fontSize.medium,
+  },
 });

@@ -1,4 +1,6 @@
+import PropTypes from "prop-types";
 import React, { useEffect, useState, useContext } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -9,16 +11,18 @@ import {
   Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Speech from "expo-speech";
-import i18n, { LANG_KEY, getDefaultLang, ttsLangMap } from "../i18n";
-import { LanguageContext } from "../App";
+import i18n, { ttsLangMap } from "../i18n";
+import { SettingsContext } from "../services/SettingsContext";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Speech from "expo-speech";
+import { translateText, getSpeakLangCode } from "../services/TranslationService";
 
 const STORAGE_KEY = "@custom_messages";
 
 export default function CustomMessagesScreen({ navigation }) {
-  const { lang } = useContext(LanguageContext);
+  const insets = useSafeAreaInsets();
+  const { langue } = useContext(SettingsContext);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [image, setImage] = useState(null);
@@ -28,15 +32,17 @@ export default function CustomMessagesScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    i18n.locale = lang;
+    i18n.locale = langue;
     navigation.setOptions({ title: i18n.t("customMessages") });
-  }, [lang]);
+  }, [langue, navigation]);
 
   const loadMessages = async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) setMessages(JSON.parse(stored));
-    } catch (e) {}
+    } catch (e) {
+      console.error("Erreur lors du chargement des messages:", e);
+    }
   };
 
   const saveMessages = async (msgs) => {
@@ -72,13 +78,20 @@ export default function CustomMessagesScreen({ navigation }) {
     saveMessages(newMsgs);
   };
 
-  const handleSpeak = (text) => {
-    const voiceLang = ttsLangMap[lang] || "en-US";
-    Speech.speak(text, { language: voiceLang });
+  const handleSpeak = async (text) => {
+    let toSpeak = text;
+    if (langue === "en") toSpeak = (await translateText(text, "fr", "en")) || text;
+    if (langue === "fr") toSpeak = (await translateText(text, "en", "fr")) || text;
+    Speech.speak(toSpeak, { language: getSpeakLangCode(langue) });
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 },
+      ]}
+    >
       <Text style={styles.title}>{i18n.t("customMessages")}</Text>
       <View style={styles.inputRow}>
         <TextInput
@@ -160,6 +173,14 @@ export default function CustomMessagesScreen({ navigation }) {
     </View>
   );
 }
+
+CustomMessagesScreen.propTypes = {
+  navigation: PropTypes.shape({
+    setOptions: PropTypes.func,
+    navigate: PropTypes.func,
+    goBack: PropTypes.func,
+  }),
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f7fafd" },

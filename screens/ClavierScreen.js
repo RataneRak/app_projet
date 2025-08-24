@@ -6,13 +6,17 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import * as Speech from "expo-speech";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SettingsContext } from "../App";
-import colors from "../theme/colors";
-import typography from "../theme/typography";
+import { SettingsContext } from "../services/SettingsContext";
 import AppButton from "../components/AppButton";
+import * as Speech from "expo-speech";
+import { getTTSLang } from "../i18n";
+import { translateText, getSpeakLangCode } from "../services/TranslationService";
+import { colors, typography } from "../theme";
 
 const SUGGESTIONS = [
   "Bonjour",
@@ -28,20 +32,27 @@ const DEFAULT_CHILD_MSG = "Bonjour !";
 
 export default function ClavierScreen() {
   const [text, setText] = useState("");
-  const { texteGrand, contraste, modeEnfant } = useContext(SettingsContext);
+  const { texteGrand, contraste, modeEnfant, langue } =
+    useContext(SettingsContext);
+  const insets = useSafeAreaInsets();
 
   const speakAndSave = async () => {
     let msg = text.trim();
     if (modeEnfant) msg = DEFAULT_CHILD_MSG;
     if (msg) {
-      Speech.speak(msg, { language: "fr-FR" });
+      let textToSpeak = msg;
+      if (langue === "en") textToSpeak = (await translateText(msg, "fr", "en")) || msg;
+      if (langue === "fr") textToSpeak = (await translateText(msg, "en", "fr")) || msg;
+      Speech.speak(textToSpeak, { language: getSpeakLangCode(langue) });
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         let history = stored ? JSON.parse(stored) : [];
         const newItem = { text: msg, date: new Date().toISOString() };
         history = [newItem, ...history].slice(0, 50);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(history));
-      } catch (e) {}
+      } catch (e) {
+        console.error("Erreur d'enregistrement de l'historique:", e);
+      }
     }
   };
 
@@ -55,6 +66,7 @@ export default function ClavierScreen() {
   const containerStyle = [
     styles.container,
     contraste && { backgroundColor: colors.contrastBackground },
+    { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 },
   ];
   const titleStyle = [
     styles.title,
@@ -85,44 +97,50 @@ export default function ClavierScreen() {
   ];
 
   return (
-    <View style={containerStyle}>
-      <Text style={titleStyle}>Clavier virtuel</Text>
-      {!modeEnfant && (
-        <TextInput
-          style={inputStyle}
-          placeholder="Écrire un message..."
-          placeholderTextColor={contraste ? colors.contrastText : colors.text}
-          value={text}
-          onChangeText={setText}
-          multiline
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={insets.top}
+    >
+      <View style={containerStyle}>
+        <Text style={titleStyle}>Clavier virtuel</Text>
+        {!modeEnfant && (
+          <TextInput
+            style={inputStyle}
+            placeholder="Écrire un message..."
+            placeholderTextColor={contraste ? colors.contrastText : colors.text}
+            value={text}
+            onChangeText={setText}
+            multiline
+          />
+        )}
+        <AppButton
+          title="🔊 Parler"
+          onPress={speakAndSave}
+          contrast={contraste}
+          accessibilityLabel="Bouton Parler"
+          style={{ marginBottom: 16 }}
+          textStyle={{ fontSize }}
         />
-      )}
-      <AppButton
-        title="🔊 Parler"
-        onPress={speakAndSave}
-        contrast={contraste}
-        accessibilityLabel="Bouton Parler"
-        style={{ marginBottom: 16 }}
-        textStyle={{ fontSize }}
-      />
-      {!modeEnfant && (
-        <FlatList
-          data={SUGGESTIONS}
-          keyExtractor={(item) => item}
-          horizontal
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={suggestionStyle}
-              onPress={() => setText(item)}
-            >
-              <Text style={suggestionTextStyle}>{item}</Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.suggestionRow}
-          showsHorizontalScrollIndicator={false}
-        />
-      )}
-    </View>
+        {!modeEnfant && (
+          <FlatList
+            data={SUGGESTIONS}
+            keyExtractor={(item) => item}
+            horizontal
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={suggestionStyle}
+                onPress={() => setText(item)}
+              >
+                <Text style={suggestionTextStyle}>{item}</Text>
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={styles.suggestionRow}
+            showsHorizontalScrollIndicator={false}
+          />
+        )}
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

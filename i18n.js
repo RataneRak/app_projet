@@ -1,8 +1,11 @@
+// i18n.js
 import * as Localization from "expo-localization";
 import i18n from "i18n-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const LANG_KEY = "@lang";
+
+/* Traduction */
 
 export const translations = {
   fr: {
@@ -20,6 +23,7 @@ export const translations = {
     english: "English",
     arabic: "العربية",
     spanish: "Español",
+    malagasy: "Malagasy",
     add: "Ajouter",
     delete: "Supprimer",
     noCustom: "Aucun message personnalisé",
@@ -31,6 +35,23 @@ export const translations = {
     pickImage: "Choisir une image",
     imageSelected: "Image sélectionnée",
     selectedImage: "Image sélectionnée",
+    speak: "Parler",
+    sos: "SOS",
+    favorites: "Favoris",
+    keyboard: "Clavier",
+    pictograms: "Pictogrammes",
+    settingsTitle: "Paramètres",
+    appearance: "Apparence",
+    themeLight: "Clair",
+    themeDark: "Sombre",
+    accessibility: "Accessibilité",
+    largeText: "Texte grand",
+    highContrast: "Contraste élevé",
+    childMode: "Mode enfant",
+    specialMode: "Mode spécialisé",
+    resetSettings: "Réinitialiser les paramètres",
+    testVoices: "Test des voix",
+    customMessagesLong: "Messages personnalisés",
   },
   en: {
     eat: "Eat",
@@ -47,6 +68,7 @@ export const translations = {
     english: "English",
     arabic: "العربية",
     spanish: "Español",
+    malagasy: "Malagasy",
     add: "Add",
     delete: "Delete",
     noCustom: "No custom message",
@@ -58,6 +80,23 @@ export const translations = {
     pickImage: "Pick an image",
     imageSelected: "Image selected",
     selectedImage: "Selected image",
+    speak: "Speak",
+    sos: "SOS",
+    favorites: "Favorites",
+    keyboard: "Keyboard",
+    pictograms: "Pictograms",
+    settingsTitle: "Settings",
+    appearance: "Appearance",
+    themeLight: "Light",
+    themeDark: "Dark",
+    accessibility: "Accessibility",
+    largeText: "Large text",
+    highContrast: "High contrast",
+    childMode: "Child mode",
+    specialMode: "Specialized mode",
+    resetSettings: "Reset settings",
+    testVoices: "Test voices",
+    customMessagesLong: "Custom messages",
   },
   ar: {
     eat: "يأكل",
@@ -291,6 +330,7 @@ export const translations = {
     english: "İngilizce",
     arabic: "Arapça",
     spanish: "İspanyolca",
+    malagasy: "Malagasy",
     german: "Almanca",
     italian: "İtalyanca",
     portuguese: "Portekizce",
@@ -307,41 +347,111 @@ export const translations = {
     yes: "Evet",
     downloadVoice: "Telefon ayarlarından sesi indirin.",
   },
+  mg: {
+    eat: "Mihinana",
+    drink: "Misotro",
+    toilet: "Kabone",
+    help: "Fanampiana",
+    home: "Fandraisana",
+    customMessages: "Hafatra manokana",
+    addMessage: "+ Hafatra",
+    history: "Tantara",
+    settings: "Safidy",
+    language: "Fiteny amin'ny app",
+    french: "Frantsay",
+    english: "Anglisy",
+    arabic: "Arabo",
+    spanish: "Espaniola",
+    malagasy: "Malagasy",
+    add: "Ampidiro",
+    delete: "Fafao",
+    noCustom: "Tsy misy hafatra manokana",
+    noHistory: "Tsy misy hafatra nampiasaina",
+    clear: "Fafao",
+    confirmClear: "Fafao ny tantara rehetra?",
+    cancel: "Aoka ihany",
+    yes: "Eny",
+    pickImage: "Mifidy sary",
+    imageSelected: "Voafidy ny sary",
+    selectedImage: "Sary voafidy",
+    downloadVoice: "Ampidiro ny feo ao amin'ny safidy ny téléphone.",
+  },
 };
 
 i18n.translations = translations;
-i18n.fallbacks = true;
 
-export const getDefaultLang = () => {
-  if (Localization.locale) {
-    if (Localization.locale.startsWith("fr")) return "fr";
-    if (Localization.locale.startsWith("ar")) return "ar";
-    if (Localization.locale.startsWith("es")) return "es";
-    return "en";
-  }
-  if (Localization.locales && Localization.locales[0]) {
-    if (Localization.locales[0].startsWith("fr")) return "fr";
-    if (Localization.locales[0].startsWith("ar")) return "ar";
-    if (Localization.locales[0].startsWith("es")) return "es";
-    return "en";
-  }
+/* Normalisation et Config */
+// ⚠️ On désactive les fallbacks implicites (sinon i18n saute vers une autre langue)
+i18n.fallbacks = false;
+
+/** Normalise n'importe quelle locale en {fr|en|mg|ar|es}, sinon "en" par défaut */
+export const normalizeLocale = (raw) => {
+  const s = String(raw || "").toLowerCase();
+  if (s.startsWith("fr")) return "fr";
+  if (s.startsWith("mg")) return "mg";
+  if (s.startsWith("ar")) return "ar";
+  if (s.startsWith("es")) return "es";
+  if (s.startsWith("en")) return "en";
+  // langues non prises en charge → EN (ou FR si tu préfères)
   return "en";
 };
 
+/** Meilleure détection par défaut (compat Expo v14+ et anciennes versions) */
+const detectDeviceLang = () => {
+  try {
+    // Expo 49+: Localization.getLocales()
+    const locales =
+      (Localization.getLocales && Localization.getLocales()) || [];
+    if (locales.length > 0) {
+      const { languageCode = "", regionCode = "" } = locales[0] || {};
+      const tag = [languageCode, regionCode].filter(Boolean).join("-");
+      return normalizeLocale(tag || languageCode);
+    }
+  } catch {}
+  // Ancienne API
+  if (Localization.locale) return normalizeLocale(Localization.locale);
+  if (Localization.locales && Localization.locales[0])
+    return normalizeLocale(Localization.locales[0]);
+  return "en";
+};
+
+export const getDefaultLang = () => detectDeviceLang();
+
+/** Langue persistée (ou défaut) — toujours normalisée */
 export const getLang = async () => {
   const stored = await AsyncStorage.getItem(LANG_KEY);
-  return stored || getDefaultLang();
+  return normalizeLocale(stored || getDefaultLang());
 };
 
+/** Applique la langue dans i18n (toujours normalisée) */
 export const setI18nConfig = (lang) => {
-  i18n.locale = lang;
+  const normalized = normalizeLocale(lang);
+  i18n.locale = normalized;
 };
 
+/** Helper pratique : set + persist + applique tout de suite */
+export const setAndPersistLang = async (lang) => {
+  const normalized = normalizeLocale(lang);
+  await AsyncStorage.setItem(LANG_KEY, normalized);
+  i18n.locale = normalized;
+  return normalized;
+};
+
+/* Mapping TTS */
+
+/** Codes TTS préférés; mg n'est pas garanti côté OS → on tente FR en fallback */
 export const ttsLangMap = {
   fr: "fr-FR",
   en: "en-US",
   ar: "ar-SA",
   es: "es-ES",
+  mg: "mg", // certains OS ne l'ont pas; expo-speech fera un fallback si absent
 };
+
+export function getTTSLang(langue) {
+  const n = normalizeLocale(langue); // fr | en | mg | ...
+  const map = { fr: "fr-FR", en: "en-US", ar: "ar-SA", es: "es-ES", mg: "mg" };
+  return map[n] || "en-US";
+}
 
 export default i18n;

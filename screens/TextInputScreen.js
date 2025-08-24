@@ -7,29 +7,41 @@ import {
   TouchableOpacity,
   Keyboard,
   Animated,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import * as Speech from "expo-speech";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import i18n, { ttsLangMap } from "../i18n";
-import { LanguageContext } from "../App";
+import { SettingsContext } from "../services/SettingsContext";
+import { fontSize, spacing, colors } from "../theme";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { getTTSLang } from "../i18n";
+import { translateText, getSpeakLangCode } from "../services/TranslationService";
 
 const HISTORY_KEY = "@history";
 const FAVORITES_KEY = "@favorites";
 
 export default function TextInputScreen() {
-  const { lang } = useContext(LanguageContext);
+  const insets = useSafeAreaInsets();
+  const { texteGrand, contraste, langue } = useContext(SettingsContext);
   const [text, setText] = useState("");
   const [favorites, setFavorites] = useState([]);
   const [isFav, setIsFav] = useState(false);
-  const [feedback, setFeedback] = useState(new Animated.Value(0));
+  const [feedback] = useState(new Animated.Value(0));
 
   useEffect(() => {
     const loadFavorites = async () => {
       try {
         const stored = await AsyncStorage.getItem(FAVORITES_KEY);
         if (stored) setFavorites(JSON.parse(stored));
-      } catch (e) {}
+      } catch (e) {
+        console.error("Erreur chargement favoris:", e);
+      }
     };
     loadFavorites();
   }, []);
@@ -38,17 +50,28 @@ export default function TextInputScreen() {
     setIsFav(favorites.includes(text.trim()) && text.trim().length > 0);
   }, [text, favorites]);
 
-  const handleSpeak = async () => {
-    if (!text.trim()) return;
-    const voiceLang = ttsLangMap[lang] || "en-US";
-    Speech.speak(text, { language: voiceLang });
+  const handleSpeak = async (msg) => {
+    if (!msg.trim()) return;
+    let textToSpeak = msg;
+    if (langue === "en") {
+      const translated = await translateText(msg, "fr", "en");
+      textToSpeak = translated || msg;
+    }
+    if (langue === "fr") {
+      const translated = await translateText(msg, "en", "fr");
+      textToSpeak = translated || msg;
+    }
+    Speech.speak(textToSpeak, { language: getSpeakLangCode(langue) });
     try {
       const stored = await AsyncStorage.getItem(HISTORY_KEY);
       let history = stored ? JSON.parse(stored) : [];
-      history.push({ text: text.trim(), lang });
-      if (history.length > 50) history = history.slice(-50);
+      const newItem = { text: msg, date: new Date().toISOString() };
+      history = [newItem, ...history].slice(0, 50);
       await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    } catch (e) {}
+    } catch (e) {
+      console.error("Erreur mise à jour historique:", e);
+    }
+
     Animated.sequence([
       Animated.timing(feedback, {
         toValue: 1,
@@ -61,93 +84,137 @@ export default function TextInputScreen() {
         useNativeDriver: true,
       }),
     ]).start();
+
     Keyboard.dismiss();
   };
 
   const toggleFavorite = async () => {
-    if (!text.trim()) return;
-    let newFavs;
-    if (favorites.includes(text.trim())) {
-      newFavs = favorites.filter((f) => f !== text.trim());
-    } else {
-      newFavs = [...favorites, text.trim()];
-    }
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const newFavs = isFav
+      ? favorites.filter((f) => f !== trimmed)
+      : [...favorites, trimmed];
     setFavorites(newFavs);
     await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(newFavs));
   };
 
+  const containerStyle = [
+    styles.container,
+    contraste && { backgroundColor: colors.contrastBackground },
+  ];
+  const titleStyle = [
+    styles.title,
+    texteGrand && { fontSize: fontSize.xlarge },
+    contraste && { color: colors.contrastText },
+  ];
+  const inputStyle = [
+    styles.input,
+    texteGrand && { fontSize: fontSize.large },
+    contraste && {
+      backgroundColor: colors.contrastSurface,
+      color: colors.contrastText,
+      borderColor: colors.contrastText,
+    },
+  ];
+  const speakBtnStyle = [
+    styles.speakBtn,
+    contraste && { backgroundColor: colors.contrastText },
+  ];
+  const speakTextStyle = [
+    styles.speakText,
+    texteGrand && { fontSize: fontSize.large },
+    contraste && { color: colors.contrastBackground },
+  ];
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{i18n.t("addMessage")}</Text>
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder={i18n.t("addMessage")}
-          value={text}
-          onChangeText={setText}
-          multiline
-          numberOfLines={3}
-          maxLength={200}
-        />
-        <TouchableOpacity
-          style={styles.favBtn}
-          onPress={toggleFavorite}
-          activeOpacity={0.7}
-        >
-          <Icon
-            name={isFav ? "star" : "star-outline"}
-            size={32}
-            color={isFav ? "#FFD600" : "#bbb"}
-          />
-        </TouchableOpacity>
-      </View>
-      <Animated.View
-        style={{
-          transform: [
-            {
-              scale: feedback.interpolate({
-                inputRange: [0, 1],
-                outputRange: [1, 1.15],
-              }),
-            },
-          ],
-        }}
+    <SafeAreaView style={[...containerStyle, { paddingTop: insets.top + 8 }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={insets.top}
       >
-        <TouchableOpacity
-          style={styles.speakBtn}
-          onPress={handleSpeak}
-          activeOpacity={0.8}
+        <ScrollView
+          contentContainerStyle={{
+            padding: spacing.large,
+            flexGrow: 1,
+            paddingBottom: insets.bottom + spacing.large,
+          }}
+          keyboardShouldPersistTaps="handled"
         >
-          <Icon name="volume-high" size={28} color="#fff" />
-          <Text style={styles.speakText}>{i18n.t("add")}</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
+          <Text style={titleStyle}>Ajouter un message</Text>
+
+          <View style={styles.inputRow}>
+            <TextInput
+              style={inputStyle}
+              placeholder="Écrire votre message..."
+              placeholderTextColor={contraste ? colors.contrastText : "#888"}
+              value={text}
+              onChangeText={setText}
+              multiline
+              numberOfLines={3}
+              maxLength={200}
+            />
+            <TouchableOpacity
+              style={styles.favBtn}
+              onPress={toggleFavorite}
+              activeOpacity={0.7}
+            >
+              <Icon
+                name={isFav ? "star" : "star-outline"}
+                size={32}
+                color={isFav ? colors.contrastText : "#bbb"}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  scale: feedback.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 1.15],
+                  }),
+                },
+              ],
+            }}
+          >
+            <TouchableOpacity
+              style={speakBtnStyle}
+              onPress={() => handleSpeak(text)}
+              activeOpacity={0.85}
+            >
+              <Icon name="volume-high" size={24} color="#fff" />
+              <Text style={speakTextStyle}>Parler</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e3f0fc",
-    padding: 24,
-    justifyContent: "center",
+    backgroundColor: colors.background,
   },
   title: {
-    fontSize: 26,
+    fontSize: fontSize.large,
     fontWeight: "bold",
-    color: "#1976d2",
-    marginBottom: 18,
+    color: colors.primary,
+    marginBottom: spacing.large,
     alignSelf: "center",
+    fontFamily: "Roboto",
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 18,
-    padding: 8,
-    marginBottom: 24,
-    shadowColor: "#1976d2",
+    padding: spacing.small,
+    marginBottom: spacing.large,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -155,15 +222,16 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 20,
-    color: "#222",
-    padding: 12,
+    fontSize: fontSize.medium,
+    color: colors.text,
+    padding: spacing.medium,
     borderRadius: 12,
     minHeight: 60,
     backgroundColor: "#f7faff",
+    fontFamily: "Roboto",
   },
   favBtn: {
-    marginLeft: 8,
+    marginLeft: spacing.small,
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 4,
@@ -173,12 +241,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1976d2",
+    backgroundColor: colors.primary,
     borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.large,
     alignSelf: "center",
-    shadowColor: "#1976d2",
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -187,7 +255,8 @@ const styles = StyleSheet.create({
   speakText: {
     color: "#fff",
     fontWeight: "bold",
-    fontSize: 20,
-    marginLeft: 12,
+    fontSize: fontSize.medium,
+    marginLeft: spacing.small,
+    fontFamily: "Roboto",
   },
 });

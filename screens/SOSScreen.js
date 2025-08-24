@@ -1,15 +1,20 @@
+// No theme tokens used directly; remove unused theme imports
 import React, { useContext } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import * as Speech from "expo-speech";
-import { SettingsContext } from "../App";
+import { SettingsContext } from "../services/SettingsContext";
+import { getTTSLang } from "../i18n";
 
 const SOS_MESSAGE = "J’ai besoin d’aide immédiatement !";
 
 export default function SOSScreen() {
-  const { texteGrand, contraste } = useContext(SettingsContext);
+  const insets = useSafeAreaInsets();
+  const { texteGrand, contraste, langue } = useContext(SettingsContext);
   const containerStyle = [
     styles.container,
     contraste && { backgroundColor: "#000" },
+    { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 },
   ];
   const titleStyle = [
     styles.title,
@@ -29,7 +34,7 @@ export default function SOSScreen() {
   ];
 
   const speak = () => {
-    Speech.speak(SOS_MESSAGE, { language: "fr-FR" });
+    Speech.speak(SOS_MESSAGE, { language: getTTSLang(langue) });
   };
 
   return (

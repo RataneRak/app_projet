@@ -1,18 +1,13 @@
+import { colors, typography } from "../theme"; // ✅ theme imports
 import React, { useState, useEffect, useContext } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
-import * as Speech from "expo-speech";
+import { View, Text, StyleSheet, FlatList, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+// VoiceService not used; removed import
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SettingsContext } from "../App";
-import colors from "../theme/colors";
-import typography from "../theme/typography";
+import { SettingsContext } from "../services/SettingsContext";
 import AppButton from "../components/AppButton";
+import * as Speech from "expo-speech";
+import { getTTSLang } from "../i18n";
 
 const STORAGE_KEY = "@history";
 
@@ -23,8 +18,10 @@ function formatDate(date) {
 }
 
 export default function HistoriqueScreen() {
+  const insets = useSafeAreaInsets();
   const [history, setHistory] = useState([]);
-  const { texteGrand, contraste, modeEnfant } = useContext(SettingsContext);
+  const { texteGrand, contraste, langue, modeEnfant } =
+    useContext(SettingsContext);
 
   useEffect(() => {
     (async () => {
@@ -34,7 +31,7 @@ export default function HistoriqueScreen() {
   }, []);
 
   const speak = (item) => {
-    Speech.speak(item.text, { language: "fr-FR" });
+    Speech.speak(item.text, { language: getTTSLang(langue) });
   };
 
   const clearHistory = () => {
@@ -54,6 +51,7 @@ export default function HistoriqueScreen() {
   const containerStyle = [
     styles.container,
     contraste && { backgroundColor: colors.contrastBackground },
+    { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 },
   ];
   const titleStyle = [
     styles.title,

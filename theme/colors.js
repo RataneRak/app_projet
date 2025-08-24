@@ -1,6 +1,7 @@
 // Palette de couleurs professionnelle
 export default {
   primary: "#1976d2", // Bleu principal
+  danger: "#d32f2f", // Rouge pour les erreurs
   primaryLight: "#63a4ff",
   primaryDark: "#004ba0",
   secondary: "#FFD600", // Jaune accent
@@ -14,4 +15,7 @@ export default {
   border: "#e0e0e0",
   contrastBackground: "#000",
   contrastText: "#FFD600",
+  contrastSurface: "#111",
+  dark: "#000", // Couleur sombre pour le mode nuit
+  lightGray: "#888", // Gris clair pour les textes secondaires
 };

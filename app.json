@@ -1,31 +1,94 @@
 {
   "expo": {
-    "name": "app_projet",
-    "slug": "app_projet",
+    "name": "Tableau de Communication",
+    "slug": "tableau-communication",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
+    "jsEngine": "hermes",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1976d2",
+      "extra": {
+        "EXPO_PUBLIC_GOOGLE_TRANSLATE_KEY": "VOTRE_CLE",
+        "EXPO_PUBLIC_TRANSLATION_PROVIDER": "google"
+      }
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.app-projet"
+      "bundleIdentifier": "com.ratanerak.tableau-communication",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Cette application utilise le microphone pour la reconnaissance vocale et améliorer l'accessibilité.",
+        "NSSpeechRecognitionUsageDescription": "Cette application utilise la reconnaissance vocale pour améliorer l'accessibilité et faciliter la communication.",
+        "CFBundleDisplayName": "Tableau de Communication",
+        "CFBundleName": "Tableau de Communication",
+        "CFBundleShortVersionString": "1.0.0",
+        "CFBundleVersion": "1.0.0"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1976d2"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.app_projet"
+      "package": "com.ratanerak.tableaucommunication",
+      "versionCode": 1,
+      "permissions": [
+        "RECORD_AUDIO",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "label": "Tableau de Communication",
+      "userInterfaceStyle": "automatic",
+      "intentFilters": [],
+      "adaptiveKeyboard": true,
+      "allowBackup": true,
+      "fullBackupContent": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "title": "Tableau de Communication"
+    },
+    "plugins": [
+      "expo-localization",
+      "expo-image-picker",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    },
+    "owner": "ratanerak",
+    "description": "Application de communication alternative avec pictogrammes et synthèse vocale pour aider les personnes ayant des difficultés de communication",
+    "keywords": [
+      "communication",
+      "accessibility",
+      "pictograms",
+      "speech-synthesis",
+      "assistive-technology",
+      "aac",
+      "augmentative-alternative-communication",
+      "disability",
+      "inclusion",
+      "special-needs"
+    ],
+    "primaryColor": "#1976d2",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "privacy": "public",
+    "category": "healthcare",
+    "language": "fr"
   }
 }

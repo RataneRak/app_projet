@@ -1,56 +1,71 @@
-import React, { useContext } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { SettingsContext } from "../App";
 import colors from "../theme/colors";
 import typography from "../theme/typography";
+import React, { useContext } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { SettingsContext } from "../services/SettingsContext";
+import PropTypes from "prop-types";
 import AppButton from "../components/AppButton";
+import i18n from "../i18n";
 
 const ALL_CATEGORIES = [
-  { key: "nourriture", label: "Nourriture", icon: "food", color: "#90caf9" },
-  { key: "boisson", label: "Boisson", icon: "cup-water", color: "#a5d6a7" },
-  { key: "besoins", label: "Besoins", icon: "toilet", color: "#ffe082" },
-  { key: "maison", label: "Maison", icon: "home", color: "#b39ddb" },
+  { key: "nourriture", label: "eat", icon: "food", color: "#90caf9" },
+  { key: "boisson", label: "drink", icon: "cup-water", color: "#a5d6a7" },
+  { key: "besoins", label: "toilet", icon: "toilet", color: "#ffe082" },
+  { key: "maison", label: "home", icon: "home", color: "#b39ddb" },
   {
     key: "emotions",
-    label: "Émotions",
+    label: "help",
     icon: "emoticon-happy-outline",
     color: "#ffab91",
   },
-  { key: "activites", label: "Activités", icon: "run", color: "#80cbc4" },
-  { key: "appeler", label: "Appeler", icon: "phone", color: "#f48fb1" },
-  { key: "autre", label: "Autre", icon: "dots-horizontal", color: "#cfd8dc" },
+  { key: "activites", label: "history", icon: "run", color: "#80cbc4" },
+  { key: "appeler", label: "settings", icon: "phone", color: "#f48fb1" },
+  {
+    key: "autre",
+    label: "customMessages",
+    icon: "dots-horizontal",
+    color: "#cfd8dc",
+  },
 ];
 
 const CHILD_CATEGORIES = ["nourriture", "boisson", "besoins", "emotions"];
 
+// Get screen dimensions
+const { width } = Dimensions.get("window");
+const numColumns = 3; // Adjust number of columns here
+const marginSize = 10;
+const catBtnSize = (width - (numColumns + 1) * marginSize) / numColumns;
+
 export default function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { texteGrand, contraste, modeEnfant } = useContext(SettingsContext);
+
+  // Dynamic styles based on settings
   const containerStyle = [
     styles.container,
     contraste && { backgroundColor: colors.contrastBackground },
+    { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 },
   ];
   const titleStyle = [
     styles.title,
     texteGrand && { fontSize: typography.fontSizeXL },
     contraste && { color: colors.contrastText },
   ];
-  const gridStyle = [styles.grid];
-  const catBtnStyle = (color) => [
-    styles.catBtn,
-    { backgroundColor: color },
-    contraste && {
-      backgroundColor: colors.contrastBackground,
-      borderColor: colors.contrastText,
-      borderWidth: 2,
-    },
-  ];
   const catLabelStyle = [
     styles.catLabel,
-    texteGrand && { fontSize: typography.fontSizeLarge },
+    { fontSize: catBtnSize * 0.12 }, // Dynamic font size
+    texteGrand && { fontSize: catBtnSize * 0.15 },
     contraste && { color: colors.contrastText },
   ];
-  const iconSize = texteGrand ? 64 : 48;
+  const iconSize = texteGrand ? catBtnSize * 0.5 : catBtnSize * 0.4;
 
   const categories = modeEnfant
     ? ALL_CATEGORIES.filter((cat) => CHILD_CATEGORIES.includes(cat.key))
@@ -58,12 +73,20 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={containerStyle}>
-      <Text style={titleStyle}>Tableau de communication</Text>
-      <View style={gridStyle}>
+      <Text style={titleStyle}>{i18n.t("home")}</Text>
+      <View style={styles.grid}>
         {categories.map((cat) => (
           <TouchableOpacity
             key={cat.key}
-            style={catBtnStyle(cat.color)}
+            style={[
+              styles.catBtn,
+              { backgroundColor: cat.color },
+              contraste && {
+                backgroundColor: colors.contrastBackground,
+                borderColor: colors.contrastText,
+                borderWidth: 2,
+              },
+            ]}
             onPress={() =>
               navigation.navigate("Pictogrammes", { category: cat.key })
             }
@@ -75,12 +98,12 @@ export default function HomeScreen({ navigation }) {
               size={iconSize}
               color={contraste ? colors.contrastText : colors.primary}
             />
-            <Text style={catLabelStyle}>{cat.label}</Text>
+            <Text style={catLabelStyle}>{i18n.t(cat.label)}</Text>
           </TouchableOpacity>
         ))}
       </View>
       <AppButton
-        title="🚨 SOS"
+        title={i18n.t("sos")}
         onPress={() => navigation.navigate("SOS")}
         contrast={contraste}
         accessibilityLabel="Bouton SOS"
@@ -88,6 +111,12 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 }
+
+HomeScreen.propTypes = {
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func,
+  }),
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -112,10 +141,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   catBtn: {
-    width: 120,
-    height: 120,
+    width: catBtnSize,
+    height: catBtnSize,
     borderRadius: 28,
-    margin: 10,
+    margin: marginSize,
     alignItems: "center",
     justifyContent: "center",
     elevation: 2,
@@ -124,11 +153,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   catLabel: {
-    marginTop: 10,
-    fontSize: typography.fontSizeRegular,
-    color: colors.primary,
+    marginTop: 5,
     fontWeight: typography.fontWeightBold,
     fontFamily: typography.fontFamily,
     textAlign: "center",
+    color: colors.primary,
   },
 });
